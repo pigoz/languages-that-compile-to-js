@@ -13,13 +13,21 @@
 
 const fetch = require('node-fetch');
 const _ = require('lodash');
+const moment = require('moment');
 const process = require('process');
 const url = `https://api.github.com/repos/${process.argv[2]}/stats/contributors`;
 
 function contributions(user) {
   // deletions are more valuable, because they imply refactorings and/or
   // better understanding of the codebase
-  return user.weeks.reduce((accu, n) => accu + n.a + n.c + n.d * 2, 0);
+  return user.weeks.reduce((accu, n) => {
+    const timestamp = parseInt(n.w);
+    const week = moment.unix(timestamp);
+    const reference = moment().subtract(1, 'year');
+    const diff = moment.duration(week.diff(reference)).months();
+    const coeff = diff < 1 ? 0.5 : Math.exp(diff / 4);
+    return accu + (n.a + n.c + n.d * 2) * coeff;
+  }, 0);
 }
 
 fetch(url)
